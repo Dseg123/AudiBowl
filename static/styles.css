@@ -1,0 +1,9 @@
+.selections {
+    display: flex;
+    flex-direction: row;
+}
+
+.select-box {
+    border-color: black;
+    padding: 0px 50px 30px 0px;
+}

@@ -1,0 +1,219 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    Audio Reader
+{% endblock %}
+
+{% block main %}
+    <div class="selections">
+        <div class="select-box">
+            <label for="category"> Choose categories: </label> <br><br>
+            <select name="category" id="category" multiple>
+                <option value="0">Current Events</option>
+                <option value="1">Fine Arts</option>
+                <option value="2">Geography</option>
+                <option value="3">History</option>
+                <option value="4">Literature</option>
+                <option value="5">Mythology</option>
+                <option value="6">Philosophy</option>
+                <option value="7">Religion</option>
+                <option value="8">Science</option>
+                <option value="9">Social Science</option>
+                <option value="10">Trash</option>
+            </select>
+        </div>
+        <div class="select-box">
+            <label for="difficulty"> Choose difficulties: </label> <br><br>
+            <select name="difficulty" id="difficulty" multiple>
+                <option value="0">Middle School</option>
+                <option value="1">Easy High School</option>
+                <option value="2">Regular High School</option>
+                <option value="3">Hard High School</option>
+                <option value="4">National High School</option>
+                <option value="5">Easy College</option>
+                <option value="6">Regular College</option>
+                <option value="7">Hard College</option>
+                <option value="8">Open</option>
+            </select>
+        </div>
+    </div>
+    
+    
+
+    <button class="btn btn-primary" id="next-button"> Next Question </button>
+    <audio id="qAudio">
+        <source id="audioSrc" src="" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+    <button class="btn btn-primary" id="buzz-button" hidden> Buzz </button>
+    <form id="answer-box" action="javascript:void(0);" hidden>
+        <input autocomplete="off" autofocus class="form-control mx-auto w-auto" name="answer" placeholder="Enter Answer" id = "answer" type="text">
+        <button type="submit" id = "submit-button" class="btn btn-primary mb-3" type = "submit">Submit</button>
+    </form>
+
+    <div id="final-loc" hidden>
+        <p id = "ans-status"> </p>
+        <br>
+        <p> Celerity: </p>
+        <p id = "celerity"></p>
+        <p> The full question: </p>
+        <p id = "full-q"> </p>
+    </div>
+
+    <script>
+        function base64ToArrayBuffer(base64) {
+            console.log(base64);
+            var binaryString = window.atob(base64);
+            var binaryLen = binaryString.length;
+            var bytes = new Uint8Array(binaryLen);
+            for (var i = 0; i < binaryLen; i++) {
+                var ascii = binaryString.charCodeAt(i);
+                bytes[i] = ascii;
+            }
+            return bytes;
+        }
+
+        let nextButton = document.querySelector("#next-button");
+        let answerText = "Answer";
+        let questionText = "Question";
+        let difficultyText = "Difficulty Unknown";
+        var a = new Audio();
+        a.playbackRate = 3.0;
+        var duration = 0;
+        var start = 0;
+        var elapsed = 0;
+        const myRate = 0.8;
+
+        nextButton.addEventListener("click", async function()
+        {
+            //var fData = new FormData();
+            console.log("clicked next")
+            let categories = [];
+            for (var option of document.querySelector("#category").options)
+            {
+                if (option.selected) {
+                    categories.push(option.value);
+                }
+            }
+            let difficulties = [];
+            for (var option of document.querySelector("#difficulty").options)
+            {
+                if (option.selected) {
+                    difficulties.push(option.value);
+                }
+            }
+            var fData = new FormData();
+            fData.append("categories", categories);
+            fData.append("difficulties", difficulties);
+
+            document.querySelector("#final-loc").hidden = true;
+            document.querySelector("#answer-box").hidden = true;
+            document.querySelector("#next-button").disabled = true;
+            const response = fetch("/", {
+                method: "POST",
+                body: fData,
+                })
+                .then(async function(response) {
+                    console.log("received");
+                    console.log(response);
+                    const jResponse = await response.json();
+                    const body = jResponse.body; //this is a string
+                    //const utf8Encode = new TextEncoder();
+                    //const byteArr = utf8Encode.encode(body);
+                    //console.log(byteArr);
+                    const bytes = base64ToArrayBuffer(body);
+                    console.log(bytes);
+
+                    var blob = new Blob([bytes], { type: 'audio/mp3' });
+                    console.log(blob);
+                    var url = window.URL.createObjectURL(blob);
+                    console.log(url);
+                    
+                    a.src = url;
+                    a.playbackRate = myRate;
+                    console.log(a);
+
+                    questionText = jResponse.question_text;
+                    answerText = jResponse.answer_text;
+                    difficulty = jResponse.difficulty;
+                    duration = jResponse.duration;
+                    //a.play();
+                    // questionText = data["body"];
+                    // var msg = new SpeechSynthesisUtterance();
+                    // msg.text = questionText;
+                    // window.speechSynthesis.speak(msg);
+                    // answerText = data["answer"];
+                    // var link=document.createElement('a');
+                    // link.href=window.URL.createObjectURL(blob);
+                    // link.download="myTossup.mp3";
+                    // link.click();
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+            
+            console.log("finished fetch block");
+            console.log(response);
+            console.log(await response);
+            document.querySelector("#buzz-button").hidden = false;
+            document.querySelector("#buzz-button").disabled = false;
+            console.log("let's play");
+            //document.querySelector("#qAudio").play()
+            a.play();
+            start = Date.now();
+        })
+
+        let buzzButton = document.querySelector("#buzz-button");
+        buzzButton.addEventListener("click", function()
+        {
+            a.pause();
+            elapsed = Date.now() - start;
+            
+            //unhide answer box
+            document.querySelector("#buzz-button").disabled = true;
+            document.querySelector("#answer").value = "";
+            document.querySelector("#answer-box").hidden = false;
+            document.querySelector("#submit-button").disabled = false;
+
+            //optionally set timeout for submission
+
+
+            //track time between buzz and question start
+        })
+
+        let ansForm = document.querySelector("#answer-box");
+        ansForm.addEventListener("submit", function()
+        {
+            //check if submitted answer matches given
+            document.querySelector("#submit-button").disabled = true;
+            let correct = true;
+            if (document.querySelector("#answer").value.toLowerCase() != answerText.toLowerCase())
+            {
+                correct = false;
+            }
+            
+            //add corresponding status message to final-loc
+            let myStr = "";
+            // if (correct)
+            // {
+            //     myStr = "Correct!";
+            // }
+            // else
+            // {
+            //     myStr = "Incorrect!";
+            // }
+            myStr = myStr + "The correct answer was " + answerText;
+            document.querySelector("#ans-status").innerHTML = myStr;
+            console.log(duration);
+            console.log(elapsed);
+            //add celerity computed from time ratio, optional power markings
+            document.querySelector("#celerity").innerHTML = (1 - Math.min(elapsed / 1000, duration / myRate) / (duration/myRate)).toFixed(3);
+            //reveal final-loc
+            document.querySelector("#full-q").innerHTML = "Difficulty: " + difficulty + "<br> " + questionText;
+            document.querySelector("#final-loc").hidden = false;
+            document.querySelector("#next-button").disabled = false;
+        })
+    </script>
+
+
+{% endblock %}
